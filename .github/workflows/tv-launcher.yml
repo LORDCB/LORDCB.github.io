@@ -54,10 +54,13 @@ jobs:
           name: home-launcher-apk
           path: ${{ runner.temp }}/home-launcher.apk
 
+      # Publishes a release on every build so the TV can download the APK directly from
+      # https://github.com/<owner>/<repo>/releases/latest/download/home-launcher.apk
       - name: Publish release
-        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: launcher-v${{ github.run_number }}
+          target_commitish: ${{ github.sha }}
           name: Home Launcher 1.0.${{ github.run_number }}
+          make_latest: true
           files: ${{ runner.temp }}/home-launcher.apk

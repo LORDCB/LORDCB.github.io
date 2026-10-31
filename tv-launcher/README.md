@@ -36,11 +36,12 @@ A clean, remote-friendly home screen for Google TV / Android TV with Home Assist
 
 ## Install
 
-1. Get the APK:
-   - From the **Releases** page of this repo (built automatically on every push to `main`), or
-   - From the latest **Actions → Build TV launcher** run (download the `home-launcher-apk` artifact).
-2. Sideload it, e.g. with the *Downloader* app on the TV, *Send Files to TV*, or adb:
-   `adb install -r home-launcher.apk`
+1. On the TV, install **Downloader** (by AFTVnews) from the Play Store.
+2. In Downloader, enter this URL and install when prompted (allow Downloader to install
+   unknown apps if asked):
+   `https://github.com/LORDCB/LORDCB.github.io/releases/latest/download/home-launcher.apk`
+   Every build publishes a new release, so this link always gives the newest version.
+   (Alternatively: `adb install -r home-launcher.apk`.)
 3. Open **Home Launcher** from your apps, then go to Settings (gear icon, top-right).
 
 ### Make it your home screen
