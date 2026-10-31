@@ -28,7 +28,8 @@ A clean, remote-friendly home screen for Google TV / Android TV with Home Assist
   - Hold select for more: light brightness presets, thermostat up/down, open/close covers,
     lock/unlock (locks never toggle on a single press), reorder or remove a tile.
   - Sensors show their value and unit.
-- **Your installed apps** along the bottom using each app's TV banner. Hold select on an app to
+- **Your installed apps** along the bottom using each app's TV banner, as a row or a grid
+  (6 per row, chosen in Settings → Apps layout). Hold select on an app to
   move it, hide it, or open App info. New installs/uninstalls appear automatically.
 - **Phone setup** – while Settings is open the TV shows an address like
   `http://192.168.1.50:8099`; open it on your phone to paste your Home Assistant URL and token
@@ -42,7 +43,10 @@ A clean, remote-friendly home screen for Google TV / Android TV with Home Assist
    `https://github.com/LORDCB/LORDCB.github.io/releases/latest/download/home-launcher.apk`
    Every build publishes a new release, so this link always gives the newest version.
    (Alternatively: `adb install -r home-launcher.apk`.)
-3. Open **Home Launcher** from your apps, then go to Settings (gear icon, top-right).
+3. Open **Home Launcher** from your apps, then go to **Settings** (button at the bottom of the screen).
+4. Optional, for the smoothest experience straight away (needs adb):
+   `adb shell cmd package compile -m speed-profile -f com.lordcb.homelauncher`
+   Otherwise Android does this by itself the next time the TV is idle.
 
 ### Make it your home screen
 

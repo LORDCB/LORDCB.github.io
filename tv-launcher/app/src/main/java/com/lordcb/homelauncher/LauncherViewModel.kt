@@ -59,7 +59,7 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
 
     val dashboard: StateFlow<List<DashboardItem>> = combine(settings, ha.states) { s, states ->
         s.entities.map { DashboardItem(it, states[it]) }
-    }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+    }.distinctUntilChanged().stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
     private val _weather = MutableStateFlow<Weather?>(null)
     val weather: StateFlow<Weather?> = _weather.asStateFlow()
@@ -76,6 +76,10 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     init {
+        viewModelScope.launch {
+            settings.map { it.entities.toSet() }.distinctUntilChanged().collect { ha.watched = it }
+        }
+
         viewModelScope.launch {
             settings.map { it.haUrl to it.haToken }.distinctUntilChanged().collect { (url, token) ->
                 ha.connect(url, token)
@@ -208,6 +212,7 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
 
     fun setUseHaLocation(use: Boolean) = store.update { it.copy(useHaLocation = use) }
     fun setFahrenheit(f: Boolean) = store.update { it.copy(fahrenheit = f) }
+    fun setAppsGrid(grid: Boolean) = store.update { it.copy(appsGrid = grid) }
 
     fun searchCity(query: String) {
         viewModelScope.launch {

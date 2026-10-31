@@ -23,6 +23,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.ChevronRight
+import androidx.compose.material.icons.rounded.GridView
+import androidx.compose.material.icons.rounded.ViewStream
 import androidx.compose.material.icons.rounded.RadioButtonUnchecked
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Search
@@ -183,6 +185,16 @@ fun SettingsScreen(vm: LauncherViewModel, onOpenPicker: () -> Unit) {
         }
         weatherError?.let { err ->
             item { SecondaryText("Weather: $err", modifier = Modifier.padding(start = 8.dp)) }
+        }
+
+        item { Header("Apps") }
+        item {
+            SettingRow(
+                title = "Apps layout",
+                value = if (settings.appsGrid) "Grid — 6 per row" else "Row — scroll sideways",
+                trailingIcon = if (settings.appsGrid) Icons.Rounded.GridView else Icons.Rounded.ViewStream,
+                onClick = { vm.setAppsGrid(!settings.appsGrid) },
+            )
         }
 
         if (hidden.isNotEmpty()) {

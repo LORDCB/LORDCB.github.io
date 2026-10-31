@@ -12,6 +12,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
@@ -29,6 +31,11 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.TextStyle
@@ -57,7 +64,7 @@ fun FocusCard(
     onLongClick: (() -> Unit)? = null,
     container: Color = Palette.Card,
     radius: Int = 16,
-    focusedScale: Float = 1.06f,
+    focusedScale: Float = 1.05f,
     content: @Composable () -> Unit,
 ) {
     val shape = RoundedCornerShape(radius.dp)
@@ -87,17 +94,21 @@ fun ActionButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     icon: ImageVector? = null,
+    compact: Boolean = false,
 ) {
     FocusCard(onClick = onClick, modifier = modifier, radius = 28, focusedScale = 1.04f) {
         Row(
-            modifier = Modifier.padding(horizontal = 22.dp, vertical = 12.dp),
+            modifier = Modifier.padding(
+                horizontal = if (compact) 16.dp else 22.dp,
+                vertical = if (compact) 7.dp else 12.dp,
+            ),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             if (icon != null) {
-                Icon(icon, contentDescription = null, modifier = Modifier.size(22.dp))
-                Spacer(Modifier.width(12.dp))
+                Icon(icon, contentDescription = null, modifier = Modifier.size(if (compact) 18.dp else 22.dp))
+                Spacer(Modifier.width(if (compact) 8.dp else 12.dp))
             }
-            Text(label, fontSize = 17.sp, fontWeight = FontWeight.Medium)
+            Text(label, fontSize = if (compact) 15.sp else 17.sp, fontWeight = FontWeight.Medium)
         }
     }
 }
@@ -135,8 +146,30 @@ fun OptionsDialog(
 ) {
     Dialog(onDismissRequest = onDismiss) {
         val first = remember { FocusRequester() }
+        // This dialog usually opens from a long press while select is still held down.
+        // Ignore that held key (its repeats and its release) until a fresh press, so letting
+        // go doesn't instantly pick the first option and close the menu.
+        val armed = remember { booleanArrayOf(false) }
         DialogPanel {
-            Column(Modifier.width(440.dp).padding(28.dp)) {
+            Column(
+                Modifier
+                    .width(440.dp)
+                    .onPreviewKeyEvent { ev ->
+                        val k = ev.key
+                        if (k == Key.DirectionCenter || k == Key.Enter || k == Key.NumPadEnter || k == Key.ButtonA) {
+                            if (ev.type == KeyEventType.KeyDown && ev.nativeKeyEvent.repeatCount == 0) {
+                                armed[0] = true
+                                false
+                            } else {
+                                !armed[0]
+                            }
+                        } else {
+                            false
+                        }
+                    }
+                    .verticalScroll(rememberScrollState())
+                    .padding(28.dp)
+            ) {
                 Text(title, fontSize = 24.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 if (subtitle != null) {
                     Spacer(Modifier.height(4.dp))

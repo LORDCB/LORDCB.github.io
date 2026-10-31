@@ -79,13 +79,3 @@ fun weatherTint(kind: WeatherKind, isDay: Boolean): Color = when (kind) {
     WeatherKind.Snow -> Color(0xFFE3F2FD)
     WeatherKind.Thunder -> Color(0xFFFFE082)
 }
-
-/** Soft glow colour behind the home screen, so the room mood follows the weather. */
-fun weatherGlow(kind: WeatherKind?, isDay: Boolean): Color = when {
-    kind == null -> Color(0xFF1B2B44)
-    !isDay -> Color(0xFF1E2350)
-    kind == WeatherKind.Clear || kind == WeatherKind.PartlyCloudy -> Color(0xFF4A3A1C)
-    kind == WeatherKind.Rain || kind == WeatherKind.Drizzle || kind == WeatherKind.Thunder -> Color(0xFF15344A)
-    kind == WeatherKind.Snow -> Color(0xFF2E3F52)
-    else -> Color(0xFF26303D)
-}

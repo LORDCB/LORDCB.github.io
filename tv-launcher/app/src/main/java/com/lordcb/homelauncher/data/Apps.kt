@@ -32,8 +32,9 @@ class AppsRepository(private val context: Context) {
                 result[pkg] = LauncherApp(
                     packageName = pkg,
                     label = ri.loadLabel(pm)?.toString() ?: pkg,
-                    banner = banner?.render(320, 180),
-                    icon = info.loadIcon(pm)?.render(160, 160),
+                    // Rendered at the size they're shown (128x72dp / 40dp at 2x) to save memory.
+                    banner = banner?.render(256, 144),
+                    icon = info.loadIcon(pm)?.render(96, 96),
                 )
             }
         }

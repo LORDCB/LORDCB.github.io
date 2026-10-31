@@ -96,6 +96,14 @@ class HomeAssistantClient(private val scope: CoroutineScope) {
 
     private val ids = AtomicInteger(1)
     private var loopJob: Job? = null
+
+    /**
+     * Entities whose live changes we apply. Everything else is ignored, so busy sensors
+     * elsewhere in the house don't cause work on the TV. The full list is refreshed on demand
+     * (e.g. when the device picker opens) via [refreshAllStates].
+     */
+    @Volatile var watched: Set<String> = emptySet()
+    @Volatile private var requestStates: (() -> Unit)? = null
     @Volatile private var socket: WebSocket? = null
 
     private enum class SessionEnd { AuthFailed, WasConnected, Failed }
@@ -154,8 +162,11 @@ class HomeAssistantClient(private val scope: CoroutineScope) {
                     "auth_ok" -> {
                         connected = true
                         _status.value = HaStatus.Connected
-                        statesId = ids.incrementAndGet()
-                        webSocket.send(JSONObject().put("id", statesId).put("type", "get_states").toString())
+                        requestStates = {
+                            statesId = ids.incrementAndGet()
+                            webSocket.send(JSONObject().put("id", statesId).put("type", "get_states").toString())
+                        }
+                        requestStates?.invoke()
                         configId = ids.incrementAndGet()
                         webSocket.send(JSONObject().put("id", configId).put("type", "get_config").toString())
                         webSocket.send(
@@ -192,10 +203,13 @@ class HomeAssistantClient(private val scope: CoroutineScope) {
                     "event" -> {
                         val data = msg.optJSONObject("event")?.optJSONObject("data") ?: return
                         val id = data.str("entity_id") ?: return
+                        if (id !in watched) return
                         val newState = data.optJSONObject("new_state")
+                        val entity = try { newState?.let { HaEntity.fromJson(it) } } catch (_: JSONException) { return }
+                        // Skip updates that don't change anything we display (e.g. last_updated churn).
+                        if (_states.value[id] == entity) return
                         _states.update { current ->
-                            if (newState == null) current - id
-                            else try { current + (id to HaEntity.fromJson(newState)) } catch (_: JSONException) { current }
+                            if (entity == null) current - id else current + (id to entity)
                         }
                     }
                 }
@@ -224,8 +238,16 @@ class HomeAssistantClient(private val scope: CoroutineScope) {
             done.await()
         } finally {
             ws.cancel()
-            if (socket === ws) socket = null
+            if (socket === ws) {
+                socket = null
+                requestStates = null
+            }
         }
+    }
+
+    /** Re-fetch every entity's current state (used by the device picker). */
+    fun refreshAllStates() {
+        requestStates?.invoke()
     }
 
     fun callService(domain: String, service: String, entityId: String, data: JSONObject? = null) {

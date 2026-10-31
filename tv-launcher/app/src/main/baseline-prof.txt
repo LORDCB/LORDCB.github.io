@@ -1,0 +1,4 @@
+# Precompile all of the launcher's own code. Compose/TV libraries ship their own profiles,
+# which are merged in automatically; profileinstaller applies them on sideloaded installs.
+HSPLcom/lordcb/homelauncher/**->**(**)**
+Lcom/lordcb/homelauncher/**;

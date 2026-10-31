@@ -19,6 +19,8 @@ data class LauncherSettings(
     val fahrenheit: Boolean = false,
     val appOrder: List<String> = emptyList(),
     val hiddenApps: Set<String> = emptySet(),
+    /** Show apps as a grid instead of a single scrolling row. */
+    val appsGrid: Boolean = false,
 )
 
 class SettingsStore(context: Context) {
@@ -42,6 +44,7 @@ class SettingsStore(context: Context) {
         fahrenheit = prefs.getBoolean("fahrenheit", false),
         appOrder = prefs.getString("app_order", "").splitLines(),
         hiddenApps = prefs.getString("hidden_apps", "").splitLines().toSet(),
+        appsGrid = prefs.getBoolean("apps_grid", false),
     )
 
     @Synchronized
@@ -57,6 +60,7 @@ class SettingsStore(context: Context) {
             .putBoolean("fahrenheit", s.fahrenheit)
             .putString("app_order", s.appOrder.joinToString("\n"))
             .putString("hidden_apps", s.hiddenApps.joinToString("\n"))
+            .putBoolean("apps_grid", s.appsGrid)
             .apply()
     }
 

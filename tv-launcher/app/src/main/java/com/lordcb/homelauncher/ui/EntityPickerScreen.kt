@@ -152,6 +152,8 @@ fun EntityPickerScreen(vm: LauncherViewModel) {
     }
 
     LaunchedEffect(Unit) {
+        // Only on-screen devices get live updates, so fetch fresh states for the full list.
+        vm.ha.refreshAllStates()
         delay(100)
         runCatching { first.requestFocus() }
     }
