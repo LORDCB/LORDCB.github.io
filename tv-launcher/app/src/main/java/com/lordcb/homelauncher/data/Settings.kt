@@ -34,14 +34,14 @@ class SettingsStore(context: Context) {
     private fun load() = LauncherSettings(
         haUrl = prefs.getString("ha_url", "") ?: "",
         haToken = prefs.getString("ha_token", "") ?: "",
-        entities = prefs.getString("entities", "").toList(),
+        entities = prefs.getString("entities", "").splitLines(),
         useHaLocation = prefs.getBoolean("use_ha_location", true),
         locationName = prefs.getString("location_name", "") ?: "",
         latitude = prefs.getString("latitude", null)?.toDoubleOrNull(),
         longitude = prefs.getString("longitude", null)?.toDoubleOrNull(),
         fahrenheit = prefs.getBoolean("fahrenheit", false),
-        appOrder = prefs.getString("app_order", "").toList(),
-        hiddenApps = prefs.getString("hidden_apps", "").toList().toSet(),
+        appOrder = prefs.getString("app_order", "").splitLines(),
+        hiddenApps = prefs.getString("hidden_apps", "").splitLines().toSet(),
     )
 
     @Synchronized
@@ -60,6 +60,6 @@ class SettingsStore(context: Context) {
             .apply()
     }
 
-    private fun String?.toList(): List<String> =
+    private fun String?.splitLines(): List<String> =
         this?.split('\n')?.map { it.trim() }?.filter { it.isNotEmpty() } ?: emptyList()
 }
