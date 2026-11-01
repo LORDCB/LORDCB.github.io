@@ -26,6 +26,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.composed
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
@@ -125,6 +126,28 @@ fun SecondaryText(text: String, modifier: Modifier = Modifier, size: Int = 15, m
     )
 }
 
+/**
+ * Dialogs here usually open from a long press while select is still held down. This ignores
+ * that held key (its repeats and its release) until a fresh press, so letting go doesn't
+ * instantly pick the first option and close the dialog.
+ */
+fun Modifier.ignoreHeldSelect(): Modifier = composed {
+    val armed = remember { booleanArrayOf(false) }
+    onPreviewKeyEvent { ev ->
+        val k = ev.key
+        if (k == Key.DirectionCenter || k == Key.Enter || k == Key.NumPadEnter || k == Key.ButtonA) {
+            if (ev.type == KeyEventType.KeyDown && ev.nativeKeyEvent.repeatCount == 0) {
+                armed[0] = true
+                false
+            } else {
+                !armed[0]
+            }
+        } else {
+            false
+        }
+    }
+}
+
 data class DialogOption(val label: String, val icon: ImageVector? = null, val action: () -> Unit)
 
 @Composable
@@ -146,27 +169,11 @@ fun OptionsDialog(
 ) {
     Dialog(onDismissRequest = onDismiss) {
         val first = remember { FocusRequester() }
-        // This dialog usually opens from a long press while select is still held down.
-        // Ignore that held key (its repeats and its release) until a fresh press, so letting
-        // go doesn't instantly pick the first option and close the menu.
-        val armed = remember { booleanArrayOf(false) }
         DialogPanel {
             Column(
                 Modifier
                     .width(440.dp)
-                    .onPreviewKeyEvent { ev ->
-                        val k = ev.key
-                        if (k == Key.DirectionCenter || k == Key.Enter || k == Key.NumPadEnter || k == Key.ButtonA) {
-                            if (ev.type == KeyEventType.KeyDown && ev.nativeKeyEvent.repeatCount == 0) {
-                                armed[0] = true
-                                false
-                            } else {
-                                !armed[0]
-                            }
-                        } else {
-                            false
-                        }
-                    }
+                    .ignoreHeldSelect()
                     .verticalScroll(rememberScrollState())
                     .padding(28.dp)
             ) {

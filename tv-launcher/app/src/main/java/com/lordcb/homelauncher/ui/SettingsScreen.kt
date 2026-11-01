@@ -23,8 +23,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.ChevronRight
-import androidx.compose.material.icons.rounded.GridView
-import androidx.compose.material.icons.rounded.ViewStream
 import androidx.compose.material.icons.rounded.RadioButtonUnchecked
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Search
@@ -56,6 +54,7 @@ import androidx.tv.material3.Surface
 import androidx.tv.material3.SurfaceDefaults
 import androidx.tv.material3.Text
 import com.lordcb.homelauncher.LauncherViewModel
+import com.lordcb.homelauncher.PickTarget
 import com.lordcb.homelauncher.data.ConfigServer
 import com.lordcb.homelauncher.data.HaStatus
 import kotlinx.coroutines.delay
@@ -63,7 +62,7 @@ import kotlinx.coroutines.delay
 private enum class EditField { Url, Token, City }
 
 @Composable
-fun SettingsScreen(vm: LauncherViewModel, onOpenPicker: () -> Unit) {
+fun SettingsScreen(vm: LauncherViewModel, onOpenPicker: (PickTarget) -> Unit) {
     val context = LocalContext.current
     val settings by vm.settings.collectAsStateWithLifecycle()
     val status by vm.ha.status.collectAsStateWithLifecycle()
@@ -141,10 +140,18 @@ fun SettingsScreen(vm: LauncherViewModel, onOpenPicker: () -> Unit) {
         }
         item {
             SettingRow(
-                title = "Devices on the home screen",
-                value = "${settings.entities.size} selected",
+                title = "Quick buttons",
+                value = "${settings.entities.size} chosen · scenes, lights and switches at the top of the screen",
                 trailingIcon = Icons.Rounded.ChevronRight,
-                onClick = onOpenPicker,
+                onClick = { onOpenPicker(PickTarget.QuickButtons) },
+            )
+        }
+        item {
+            SettingRow(
+                title = "Sensors panel",
+                value = "${settings.sensors.size} chosen · grouped by area on the home screen",
+                trailingIcon = Icons.Rounded.ChevronRight,
+                onClick = { onOpenPicker(PickTarget.Sensors) },
             )
         }
 
@@ -187,16 +194,6 @@ fun SettingsScreen(vm: LauncherViewModel, onOpenPicker: () -> Unit) {
             item { SecondaryText("Weather: $err", modifier = Modifier.padding(start = 8.dp)) }
         }
 
-        item { Header("Apps") }
-        item {
-            SettingRow(
-                title = "Apps layout",
-                value = if (settings.appsGrid) "Grid — 6 per row" else "Row — scroll sideways",
-                trailingIcon = if (settings.appsGrid) Icons.Rounded.GridView else Icons.Rounded.ViewStream,
-                onClick = { vm.setAppsGrid(!settings.appsGrid) },
-            )
-        }
-
         if (hidden.isNotEmpty()) {
             item { Header("Hidden apps") }
             items(hidden, key = { it.packageName }) { app ->
@@ -220,7 +217,7 @@ fun SettingsScreen(vm: LauncherViewModel, onOpenPicker: () -> Unit) {
         item {
             Spacer(Modifier.height(8.dp))
             SecondaryText(
-                "Tip: hold the select button on an app or device tile to reorder, hide or adjust it.",
+                "Tip: hold select on an app, quick button or light to reorder it or change colour and brightness. The Apps tab shows every app in a grid.",
                 maxLines = 2,
             )
         }

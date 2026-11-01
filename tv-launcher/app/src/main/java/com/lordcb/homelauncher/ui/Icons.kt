@@ -53,9 +53,17 @@ fun entityIcon(e: HaEntity?, entityId: String): ImageVector {
             "temperature" -> Icons.Rounded.Thermostat
             "humidity", "moisture" -> Icons.Rounded.WaterDrop
             "power", "energy", "current", "voltage", "battery" -> Icons.Rounded.Bolt
+            "pm1", "pm25", "pm10", "aqi", "volatile_organic_compounds",
+            "volatile_organic_compounds_parts", "carbon_dioxide", "carbon_monoxide", "nitrogen_dioxide",
+            "ozone", "sulphur_dioxide" -> Icons.Rounded.Grain
+            "illuminance" -> Icons.Rounded.WbSunny
             else -> Icons.Rounded.Sensors
         }
-        "binary_sensor" -> Icons.Rounded.Sensors
+        "binary_sensor" -> when (e?.deviceClass) {
+            "door", "garage_door", "opening", "window" -> Icons.Rounded.Window
+            "moisture" -> Icons.Rounded.WaterDrop
+            else -> Icons.Rounded.Sensors
+        }
         else -> Icons.Rounded.Home
     }
 }

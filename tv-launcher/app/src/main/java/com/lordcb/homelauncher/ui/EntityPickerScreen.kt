@@ -38,22 +38,32 @@ import androidx.tv.material3.Icon
 import androidx.tv.material3.LocalContentColor
 import androidx.tv.material3.Text
 import com.lordcb.homelauncher.LauncherViewModel
+import com.lordcb.homelauncher.PickTarget
 import com.lordcb.homelauncher.data.HaEntity
 import com.lordcb.homelauncher.data.HaStatus
 import kotlinx.coroutines.delay
 
 private data class DomainGroup(val label: String, val domains: Set<String>?)
 
-private val groups = listOf(
-    DomainGroup("All", null),
+private val quickGroups = listOf(
+    DomainGroup("Scenes & scripts", setOf("scene", "script", "button", "input_button")),
     DomainGroup("Lights", setOf("light")),
     DomainGroup("Switches", setOf("switch", "input_boolean", "fan", "automation")),
-    DomainGroup("Scenes & scripts", setOf("scene", "script", "button", "input_button")),
-    DomainGroup("Climate", setOf("climate")),
     DomainGroup("Covers & locks", setOf("cover", "lock")),
-    DomainGroup("Media", setOf("media_player")),
-    DomainGroup("Sensors", setOf("sensor", "binary_sensor")),
+    DomainGroup("Climate", setOf("climate")),
+    DomainGroup("Media", setOf("media_player", "vacuum")),
 )
+
+private val sensorGroups = listOf(
+    DomainGroup("Sensors", setOf("sensor")),
+    DomainGroup("Binary sensors", setOf("binary_sensor")),
+    DomainGroup("Climate", setOf("climate")),
+)
+
+private fun groupsFor(target: PickTarget): List<DomainGroup> {
+    val specific = if (target == PickTarget.QuickButtons) quickGroups else sensorGroups
+    return listOf(DomainGroup("All", specific.flatMap { it.domains.orEmpty() }.toSet())) + specific
+}
 
 private val hiddenDomains = setOf(
     "update", "zone", "sun", "conversation", "tts", "stt", "wake_word", "event",
@@ -61,13 +71,15 @@ private val hiddenDomains = setOf(
 )
 
 private val domainRank = listOf(
-    "light", "switch", "fan", "scene", "script", "climate", "cover", "lock",
+    "scene", "script", "light", "switch", "fan", "climate", "cover", "lock",
     "media_player", "input_boolean", "button", "sensor", "binary_sensor",
 )
 
 @Composable
-fun EntityPickerScreen(vm: LauncherViewModel) {
+fun EntityPickerScreen(vm: LauncherViewModel, target: PickTarget) {
     val states by vm.ha.states.collectAsStateWithLifecycle()
+    val areas by vm.ha.areas.collectAsStateWithLifecycle()
+    val groups = remember(target) { groupsFor(target) }
     val settings by vm.settings.collectAsStateWithLifecycle()
     val status by vm.ha.status.collectAsStateWithLifecycle()
     var groupIndex by remember { mutableIntStateOf(0) }
@@ -87,9 +99,19 @@ fun EntityPickerScreen(vm: LauncherViewModel) {
 
     Column(Modifier.fillMaxSize().background(Palette.Background).padding(top = 40.dp)) {
         Column(Modifier.padding(horizontal = 120.dp)) {
-            Text("Choose devices", fontSize = 40.sp, fontWeight = FontWeight.Light, color = Palette.TextPrimary)
             Text(
-                "${settings.entities.size} on your home screen · press select to add or remove",
+                if (target == PickTarget.QuickButtons) "Quick buttons" else "Sensors panel",
+                fontSize = 40.sp,
+                fontWeight = FontWeight.Light,
+                color = Palette.TextPrimary,
+            )
+            val count = if (target == PickTarget.QuickButtons) settings.entities.size else settings.sensors.size
+            Text(
+                if (target == PickTarget.QuickButtons) {
+                    "$count chosen · the first 3 show at the top of the home screen · press select to add or remove"
+                } else {
+                    "$count chosen · grouped by Home Assistant area · press select to add or remove"
+                },
                 fontSize = 17.sp,
                 color = Palette.TextSecondary,
             )
@@ -123,9 +145,9 @@ fun EntityPickerScreen(vm: LauncherViewModel) {
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             items(list, key = { it.entityId }) { e ->
-                val selected = e.entityId in settings.entities
+                val selected = vm.isSelected(target, settings, e.entityId)
                 FocusCard(
-                    onClick = { vm.toggleEntitySelected(e.entityId) },
+                    onClick = { vm.toggleEntitySelected(target, e.entityId) },
                     focusedScale = 1.02f,
                     modifier = Modifier.fillMaxWidth(),
                 ) {
@@ -137,7 +159,10 @@ fun EntityPickerScreen(vm: LauncherViewModel) {
                         Spacer(Modifier.width(18.dp))
                         Column(Modifier.weight(1f)) {
                             Text(e.name, fontSize = 18.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                            SecondaryText("${e.entityId} · ${stateText(e)}", size = 14)
+                            SecondaryText(
+                                listOfNotNull(areas.areaOfEntity[e.entityId], e.entityId, stateText(e)).joinToString(" · "),
+                                size = 14,
+                            )
                         }
                         Icon(
                             if (selected) Icons.Rounded.CheckCircle else Icons.Rounded.RadioButtonUnchecked,

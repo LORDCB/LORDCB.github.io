@@ -18,7 +18,13 @@ import com.lordcb.homelauncher.data.SettingsStore
 import com.lordcb.homelauncher.data.Weather
 import com.lordcb.homelauncher.data.WeatherKey
 import com.lordcb.homelauncher.data.WeatherRepository
+import android.graphics.BitmapFactory
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asImageBitmap
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import okhttp3.Request
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -36,12 +42,20 @@ import org.json.JSONObject
 
 data class DashboardItem(val entityId: String, val entity: HaEntity?)
 
+data class SensorGroup(val area: String?, val items: List<DashboardItem>)
+
+data class LightGroup(val area: String?, val lights: List<HaEntity>)
+
+/** Which list the device picker edits. */
+enum class PickTarget { QuickButtons, Sensors }
+
 class LauncherViewModel(app: Application) : AndroidViewModel(app) {
     private val store = SettingsStore(app)
     val settings: StateFlow<LauncherSettings> = store.settings
 
     val ha = HomeAssistantClient(viewModelScope)
     private val weatherRepo = WeatherRepository(OkHttpClient())
+    private val snapshotHttp = OkHttpClient()
     private val appsRepo = AppsRepository(app)
 
     private val allApps = MutableStateFlow<List<LauncherApp>>(emptyList())
@@ -61,6 +75,32 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
         s.entities.map { DashboardItem(it, states[it]) }
     }.distinctUntilChanged().stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
+    /** Chosen sensors grouped by their Home Assistant area, areas in HA's order. */
+    val sensorGroups: StateFlow<List<SensorGroup>> = combine(settings, ha.states, ha.areas) { s, states, areas ->
+        val items = s.sensors.map { DashboardItem(it, states[it]) }
+        groupByArea(items, areas.order) { areas.areaOfEntity[it.entityId] }
+            .map { (area, list) -> SensorGroup(area, list) }
+    }.distinctUntilChanged().stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+
+    /** Every light in Home Assistant, grouped by area. */
+    val lightGroups: StateFlow<List<LightGroup>> = combine(ha.states, ha.areas) { states, areas ->
+        val lights = states.values.filter { it.domain == "light" }.sortedBy { it.name.lowercase() }
+        groupByArea(lights, areas.order) { areas.areaOfEntity[it.entityId] }
+            .map { (area, list) -> LightGroup(area, list) }
+    }.distinctUntilChanged().stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+
+    val cameras: StateFlow<List<HaEntity>> = ha.states.map { states ->
+        states.values.filter { it.domain == "camera" }.sortedBy { it.name.lowercase() }
+    }.distinctUntilChanged().stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+
+    private fun <T> groupByArea(items: List<T>, order: List<String>, areaOf: (T) -> String?): List<Pair<String?, List<T>>> {
+        val grouped = items.groupBy(areaOf)
+        val rank = order.withIndex().associate { it.value to it.index }
+        return grouped.entries
+            .sortedBy { (area, _) -> if (area == null) Int.MAX_VALUE else rank[area] ?: (Int.MAX_VALUE - 1) }
+            .map { it.key to it.value }
+    }
+
     private val _weather = MutableStateFlow<Weather?>(null)
     val weather: StateFlow<Weather?> = _weather.asStateFlow()
 
@@ -77,7 +117,7 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
 
     init {
         viewModelScope.launch {
-            settings.map { it.entities.toSet() }.distinctUntilChanged().collect { ha.watched = it }
+            settings.map { it.entities.toSet() + it.sensors }.distinctUntilChanged().collect { ha.watched = it }
         }
 
         viewModelScope.launch {
@@ -164,9 +204,61 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
 
     fun reconnect() = settings.value.let { ha.connect(it.haUrl, it.haToken) }
 
-    fun toggleEntitySelected(entityId: String) = store.update {
-        if (entityId in it.entities) it.copy(entities = it.entities - entityId)
-        else it.copy(entities = it.entities + entityId)
+    fun isSelected(target: PickTarget, s: LauncherSettings, entityId: String) = when (target) {
+        PickTarget.QuickButtons -> entityId in s.entities
+        PickTarget.Sensors -> entityId in s.sensors
+    }
+
+    fun toggleEntitySelected(target: PickTarget, entityId: String) = store.update {
+        when (target) {
+            PickTarget.QuickButtons ->
+                if (entityId in it.entities) it.copy(entities = it.entities - entityId)
+                else it.copy(entities = it.entities + entityId)
+            PickTarget.Sensors ->
+                if (entityId in it.sensors) it.copy(sensors = it.sensors - entityId)
+                else it.copy(sensors = it.sensors + entityId)
+        }
+    }
+
+    // ---- Lights ----
+
+    fun toggleLight(e: HaEntity) = ha.callService("light", "toggle", e.entityId)
+
+    /** hue 0-360, saturation 0-100 */
+    fun setLightColor(e: HaEntity, hue: Float, saturation: Float) = ha.callService(
+        "light", "turn_on", e.entityId,
+        JSONObject().put("hs_color", org.json.JSONArray().put(hue.toDouble()).put(saturation.toDouble())),
+    )
+
+    fun setLightTemperature(e: HaEntity, kelvin: Int) {
+        val k = kelvin.coerceIn(e.minKelvin ?: 2000, e.maxKelvin ?: 6500)
+        ha.callService("light", "turn_on", e.entityId, JSONObject().put("color_temp_kelvin", k))
+    }
+
+    // ---- Cameras ----
+
+    fun selectCamera(entityId: String) = store.update { it.copy(lastCamera = entityId) }
+
+    suspend fun cameraStreamUrl(entityId: String): String? = ha.cameraStreamUrl(entityId)
+
+    /** Fetches a still from the camera, decoded down to roughly [targetWidth] px wide. */
+    suspend fun cameraSnapshot(picturePath: String, targetWidth: Int): ImageBitmap? = withContext(Dispatchers.IO) {
+        val url = ha.absoluteUrl(picturePath) ?: return@withContext null
+        try {
+            val bytes = snapshotHttp.newCall(
+                Request.Builder().url(url).header("Authorization", "Bearer ${ha.token}").build()
+            ).execute().use { if (it.isSuccessful) it.body?.bytes() else null } ?: return@withContext null
+            val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+            BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
+            var sample = 1
+            while (bounds.outWidth / (sample * 2) >= targetWidth) sample *= 2
+            BitmapFactory.decodeByteArray(bytes, 0, bytes.size, BitmapFactory.Options().apply { inSampleSize = sample })
+                ?.asImageBitmap()
+        } catch (e: CancellationException) {
+            throw e
+        } catch (_: Exception) {
+            null
+        }
     }
 
     fun removeEntity(entityId: String) = store.update { it.copy(entities = it.entities - entityId) }
@@ -212,7 +304,6 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
 
     fun setUseHaLocation(use: Boolean) = store.update { it.copy(useHaLocation = use) }
     fun setFahrenheit(f: Boolean) = store.update { it.copy(fahrenheit = f) }
-    fun setAppsGrid(grid: Boolean) = store.update { it.copy(appsGrid = grid) }
 
     fun searchCity(query: String) {
         viewModelScope.launch {

@@ -4,36 +4,47 @@ A clean, remote-friendly home screen for Google TV / Android TV with Home Assist
 
 ```
 ┌──────────────────────────────────────────────────────────────────────────┐
-│ Good evening                                ☀ 18°  │ Sat Sun Mon Tue Wed  ⚙ │
-│ 19:42                                    Clear     │  ☁   ☂   ☀   ☀   ☁     │
-│ Saturday 31 October                      Home      │ 17° 15° 19° 20° 16°    │
-│                                                                          │
-│ Home                                                                     │
-│ [💡 Living room] [💡 Kitchen] [🔌 Lamp] [🎨 Movie night] [🌡 21° → 22°] [+] │
-│                                                                          │
-│ Apps                                                                     │
-│ [ Netflix ] [ YouTube ] [ Plex ] [ Disney+ ] [ Spotify ] [ Settings ] …   │
+│ Home  Cameras  Lights  Apps          (💡 TV Lights) (🎬 Movie)  ⚙  17:04 │
+│ ┌──────────────────────────────────┐ ┌──────────────────────────────┐   │
+│ │                                  │ │ ☀ 11°  Sunny  11°/4° · no rain│   │
+│ │       live camera  ‹  ›          │ │ 17:00 18:00 19:00 20:00 …     │   │
+│ │                                  │ ├──────────────────────────────┤   │
+│ │                                  │ │ Outside                       │   │
+│ │                                  │ │  Garden PM 10        18.0 ppb │   │
+│ │                    Garden cam    │ │ Kitchen                       │   │
+│ └──────────────────────────────────┘ │  Kitchen PM 10        5.0 ppb │   │
+│                                      └──────────────────────────────┘   │
+│ [YouTube] [Netflix] [Prime] [Jellyfin] [HBO Max] [Apple TV] …           │
 └──────────────────────────────────────────────────────────────────────────┘
 ```
 
 ## Features
 
-- **Clock, date and greeting** in large, easy-to-read type.
-- **Weather** – current conditions plus a 5-day forecast from [Open-Meteo](https://open-meteo.com)
-  (free, no API key). Uses your Home Assistant home location automatically, or any city you pick.
-  The background glow subtly follows the weather and time of day.
-- **Home Assistant** – live tiles over the WebSocket API (instant updates, auto-reconnect).
-  - Press select to toggle lights, switches, fans, covers, input booleans, run scenes/scripts,
-    press buttons, play/pause media, start a vacuum.
-  - Hold select for more: light brightness presets, thermostat up/down, open/close covers,
-    lock/unlock (locks never toggle on a single press), reorder or remove a tile.
-  - Sensors show their value and unit.
-- **Your installed apps** along the bottom using each app's TV banner, as a row or a grid
-  (6 per row, chosen in Settings → Apps layout). Hold select on an app to
-  move it, hide it, or open App info. New installs/uninstalls appear automatically.
+- **Tabs** – Home, Cameras, Lights and Apps along the top, with the clock top-right.
+- **Quick buttons** – up to three scenes, scripts, lights or switches in the header
+  (e.g. "TV Lights"). Select runs/toggles them; hold to reorder or remove.
+- **Live camera** – the Home tab plays a Home Assistant camera live (HLS via HA's stream
+  integration, muted). Left/right on the panel switches camera; select opens it full screen.
+  If a camera can't stream, it falls back to refreshing snapshots. Video stops when another
+  app is open.
+- **Weather** – current conditions, today's high/low and rain chance, and the next 6 hours,
+  from [Open-Meteo](https://open-meteo.com) (free, no API key). Uses your Home Assistant home
+  location automatically, or any city you pick.
+- **Sensors panel** – the sensors you choose, grouped by their Home Assistant areas.
+- **Lights tab** – every light in Home Assistant, grouped by area and showing its current
+  colour. Select toggles; **hold** opens a panel with on/off, a brightness bar (left/right in
+  10% steps), white temperatures (candle → daylight) and colours, depending on what the bulb
+  supports.
+- **Cameras tab** – all cameras as snapshots; select for full-screen live view.
+- **Apps** – your installed apps along the bottom of the Home tab using each app's TV banner,
+  and the Apps tab shows them all in a grid. Hold select on an app to move it, hide it, or
+  open App info. New installs/uninstalls appear automatically.
+- **Hold-to-open menus** ignore the held button, so they stay open after you let go.
 - **Phone setup** – while Settings is open the TV shows an address like
   `http://192.168.1.50:8099`; open it on your phone to paste your Home Assistant URL and token
   instead of typing a 180-character token with a remote.
+- **Built for the Chromecast with Google TV** – precompiled UI code (baseline profile), live
+  updates only for what's on screen, and lightweight rendering.
 
 ## Install
 
@@ -43,7 +54,7 @@ A clean, remote-friendly home screen for Google TV / Android TV with Home Assist
    `https://github.com/LORDCB/LORDCB.github.io/releases/latest/download/home-launcher.apk`
    Every build publishes a new release, so this link always gives the newest version.
    (Alternatively: `adb install -r home-launcher.apk`.)
-3. Open **Home Launcher** from your apps, then go to **Settings** (button at the bottom of the screen).
+3. Open **Home Launcher** from your apps, then open **Settings** (gear icon, top-right).
 4. Optional, for the smoothest experience straight away (needs adb):
    `adb shell cmd package compile -m speed-profile -f com.lordcb.homelauncher`
    Otherwise Android does this by itself the next time the TV is idle.
@@ -72,7 +83,8 @@ opening the stock launcher. Two options:
 2. On the TV open Settings. Either use the phone-setup address shown on screen, or enter the
    *Server address* (e.g. `http://homeassistant.local:8123` or `http://192.168.1.10:8123`) and
    *Long-lived access token* with the remote.
-3. Choose **Devices on the home screen** and tick the entities you want.
+3. Choose your **Quick buttons** and **Sensors panel** entries. Lights and cameras are picked
+   up automatically.
 
 ## Build it yourself
 

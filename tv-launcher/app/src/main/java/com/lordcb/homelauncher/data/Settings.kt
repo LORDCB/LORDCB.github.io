@@ -9,7 +9,7 @@ import kotlinx.coroutines.flow.update
 data class LauncherSettings(
     val haUrl: String = "",
     val haToken: String = "",
-    /** Entity ids shown on the home screen, in display order. */
+    /** Quick buttons in the home screen header (scenes, lights, switches…), in display order. */
     val entities: List<String> = emptyList(),
     /** When true (or no manual location is set) weather uses Home Assistant's home location. */
     val useHaLocation: Boolean = true,
@@ -19,8 +19,10 @@ data class LauncherSettings(
     val fahrenheit: Boolean = false,
     val appOrder: List<String> = emptyList(),
     val hiddenApps: Set<String> = emptySet(),
-    /** Show apps as a grid instead of a single scrolling row. */
-    val appsGrid: Boolean = false,
+    /** Sensors shown in the home screen's sensor panel. */
+    val sensors: List<String> = emptyList(),
+    /** Camera shown on the home screen. */
+    val lastCamera: String = "",
 )
 
 class SettingsStore(context: Context) {
@@ -44,7 +46,8 @@ class SettingsStore(context: Context) {
         fahrenheit = prefs.getBoolean("fahrenheit", false),
         appOrder = prefs.getString("app_order", "").splitLines(),
         hiddenApps = prefs.getString("hidden_apps", "").splitLines().toSet(),
-        appsGrid = prefs.getBoolean("apps_grid", false),
+        sensors = prefs.getString("sensors", "").splitLines(),
+        lastCamera = prefs.getString("last_camera", "") ?: "",
     )
 
     @Synchronized
@@ -60,7 +63,8 @@ class SettingsStore(context: Context) {
             .putBoolean("fahrenheit", s.fahrenheit)
             .putString("app_order", s.appOrder.joinToString("\n"))
             .putString("hidden_apps", s.hiddenApps.joinToString("\n"))
-            .putBoolean("apps_grid", s.appsGrid)
+            .putString("sensors", s.sensors.joinToString("\n"))
+            .putString("last_camera", s.lastCamera)
             .apply()
     }
 

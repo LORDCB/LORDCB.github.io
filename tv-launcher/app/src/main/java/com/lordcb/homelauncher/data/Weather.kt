@@ -8,6 +8,8 @@ import okhttp3.Request
 import org.json.JSONObject
 import java.io.IOException
 import java.time.LocalDate
+import java.time.LocalDateTime
+import java.time.temporal.ChronoUnit
 
 enum class WeatherKind { Clear, PartlyCloudy, Cloudy, Fog, Drizzle, Rain, Snow, Thunder }
 
@@ -19,6 +21,8 @@ data class DailyForecast(
     val precipChance: Int?,
 )
 
+data class HourlyForecast(val time: LocalDateTime, val code: Int, val temperature: Double, val isDay: Boolean)
+
 data class Weather(
     val locationName: String,
     val temperature: Double,
@@ -27,6 +31,7 @@ data class Weather(
     val isDay: Boolean,
     val humidity: Int?,
     val daily: List<DailyForecast>,
+    val hourly: List<HourlyForecast> = emptyList(),
 )
 
 data class GeoResult(val name: String, val detail: String, val latitude: Double, val longitude: Double)
@@ -84,6 +89,8 @@ class WeatherRepository(private val http: OkHttpClient) {
                 "daily",
                 "weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max"
             )
+            .addQueryParameter("hourly", "temperature_2m,weather_code,is_day")
+            .addQueryParameter("forecast_hours", "8")
             .addQueryParameter("timezone", "auto")
             .addQueryParameter("forecast_days", "6")
             .addQueryParameter("temperature_unit", if (key.fahrenheit) "fahrenheit" else "celsius")
@@ -105,7 +112,24 @@ class WeatherRepository(private val http: OkHttpClient) {
                 precipChance = if (rain == null || rain.isNull(i)) null else rain.optInt(i),
             )
         }
+        val hourlyJson = json.optJSONObject("hourly")
+        val thisHour = LocalDateTime.now().truncatedTo(ChronoUnit.HOURS)
+        val hours = hourlyJson?.let { h ->
+            val t = h.getJSONArray("time")
+            val c = h.getJSONArray("weather_code")
+            val temp = h.getJSONArray("temperature_2m")
+            val day = h.optJSONArray("is_day")
+            (0 until t.length()).map { i ->
+                HourlyForecast(
+                    time = LocalDateTime.parse(t.getString(i)),
+                    code = c.optInt(i),
+                    temperature = temp.optDouble(i),
+                    isDay = day?.optInt(i, 1) != 0,
+                )
+            }.filter { !it.time.isBefore(thisHour) }.take(6)
+        } ?: emptyList()
         Weather(
+            hourly = hours,
             locationName = key.name,
             temperature = current.optDouble("temperature_2m"),
             feelsLike = current.optDouble("apparent_temperature"),
